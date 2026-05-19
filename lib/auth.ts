@@ -1,13 +1,15 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 
+// This file runs in Node.js API routes (not edge) — Node crypto is fine here.
+
 const COOKIE = "pos_session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 function sign(value: string): string {
   const secret = process.env.AUTH_SECRET!;
-  const hmac = createHmac("sha256", secret).update(value).digest("hex");
-  return `${value}.${hmac}`;
+  const sig = createHmac("sha256", secret).update(value).digest("hex");
+  return `${value}.${sig}`;
 }
 
 function verify(signed: string): string | null {
@@ -39,7 +41,6 @@ export function clearSessionCookie(): string {
   return `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
 }
 
-/** Validate the x-api-secret header for programmatic access. */
 export function isValidApiSecret(header: string | null): boolean {
   const secret = process.env.API_SECRET;
   if (!secret || !header) return false;
