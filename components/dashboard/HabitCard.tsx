@@ -6,23 +6,26 @@ import { localDateKey } from "@/lib/localDate";
 
 const SIMPLE_HABITS = ["Read", "Meditate", "Journal", "Sleep by midnight"];
 const EXERCISE_OPTIONS = ["Weight lifting", "Muay thai", "Yoga", "Running", "Sauna", "Cold plunge"];
+const SUPPLEMENT_OPTIONS = ["Multi vitamin", "L-Lysine", "Vitamin D3 & K2", "Hair growth", "Probiotic"];
 const BAD_HABITS = ["Alcohol", "Smoking"];
 
 interface HabitState {
-  done: string[];          // simple habits checked
-  exercise: string[];      // exercise sub-selections
-  bad_habits: string[];    // bad habits logged
-  weight_kg: string;       // bodyweight
+  done: string[];
+  exercise: string[];
+  supplements: string[];
+  bad_habits: string[];
+  weight_kg: string;
 }
 
 const STORAGE_KEY = (date: string) => `pos-habits-${date}`;
 
-const DEFAULT_STATE: HabitState = { done: [], exercise: [], bad_habits: [], weight_kg: "" };
+const DEFAULT_STATE: HabitState = { done: [], exercise: [], supplements: [], bad_habits: [], weight_kg: "" };
 
 export default function HabitCard() {
   const today = localDateKey();
   const [state, setState] = useState<HabitState>(DEFAULT_STATE);
   const [showExercise, setShowExercise] = useState(false);
+  const [showSupplements, setShowSupplements] = useState(false);
   const [showBad, setShowBad] = useState(false);
   const dirtyRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,6 +34,7 @@ export default function HabitCard() {
     return {
       done: partial.done ?? [],
       exercise: partial.exercise ?? [],
+      supplements: partial.supplements ?? [],
       bad_habits: partial.bad_habits ?? [],
       weight_kg: partial.weight_kg ?? "",
     };
@@ -80,6 +84,13 @@ export default function HabitCard() {
       ? state.exercise.filter((e) => e !== opt)
       : [...state.exercise, opt];
     save({ ...state, exercise });
+  }
+
+  function toggleSupplement(opt: string) {
+    const supplements = state.supplements.includes(opt)
+      ? state.supplements.filter((s) => s !== opt)
+      : [...state.supplements, opt];
+    save({ ...state, supplements });
   }
 
   function toggleBad(habit: string) {
@@ -202,6 +213,46 @@ export default function HabitCard() {
             className="num w-16 bg-transparent text-right text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
           />
           <span className="text-xs text-[var(--text-muted)]">kg</span>
+        </div>
+
+        {/* Supplements */}
+        <div>
+          <button
+            onClick={() => setShowSupplements((v) => !v)}
+            className={`w-full flex items-center gap-2 py-2 px-3 rounded-lg transition-colors text-left ${
+              state.supplements.length > 0
+                ? "bg-[var(--accent)]/15 border border-[var(--accent)]/30"
+                : "bg-[var(--ink-2)] hover:bg-[var(--ink-3)] border border-transparent"
+            }`}
+          >
+            <span className={`text-xs flex-1 ${state.supplements.length > 0 ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"}`}>
+              Supplements
+            </span>
+            {state.supplements.length > 0 && (
+              <span className="num text-[10px] text-[var(--accent)]">{state.supplements.length}/{SUPPLEMENT_OPTIONS.length}</span>
+            )}
+            <span className="text-[var(--text-muted)] text-[10px]">{showSupplements ? "▲" : "▼"}</span>
+          </button>
+          {showSupplements && (
+            <div className="mt-1 ml-2 flex flex-col gap-1">
+              {SUPPLEMENT_OPTIONS.map((opt) => {
+                const active = state.supplements.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => toggleSupplement(opt)}
+                    className={`text-left px-3 py-1.5 rounded-lg text-[11px] transition-colors ${
+                      active
+                        ? "bg-[var(--accent)]/20 text-[var(--accent)]"
+                        : "bg-[var(--ink-2)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                    }`}
+                  >
+                    {active ? "✓ " : ""}{opt}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Bad habits */}
