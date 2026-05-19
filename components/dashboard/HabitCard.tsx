@@ -27,15 +27,26 @@ export default function HabitCard() {
   const dirtyRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  function merge(partial: Partial<HabitState>): HabitState {
+    return {
+      done: partial.done ?? [],
+      exercise: partial.exercise ?? [],
+      bad_habits: partial.bad_habits ?? [],
+      weight_kg: partial.weight_kg ?? "",
+    };
+  }
+
   useEffect(() => {
     const local = localStorage.getItem(STORAGE_KEY(today));
-    if (local) setState(JSON.parse(local));
+    if (local) {
+      try { setState(merge(JSON.parse(local))); } catch {}
+    }
 
     fetch(`/api/habits?days=1`)
       .then((r) => r.json())
-      .then((data: Record<string, HabitState>) => {
+      .then((data: Record<string, Partial<HabitState>>) => {
         if (!dirtyRef.current) {
-          const server = data[today] ?? DEFAULT_STATE;
+          const server = merge(data[today] ?? {});
           setState(server);
           localStorage.setItem(STORAGE_KEY(today), JSON.stringify(server));
         }
