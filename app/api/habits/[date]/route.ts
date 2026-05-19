@@ -13,9 +13,9 @@ export async function POST(
   }
 
   const { date } = await params;
-  const { done } = await req.json() as { done: string[] };
+  const habitState = await req.json();
 
-  // Read existing notes so we don't clobber other fields (nutrition, goals, etc.)
+  // Read existing notes to avoid clobbering nutrition/goals/finance
   const { data: existing } = await db
     .from("daily_logs")
     .select("notes")
@@ -30,10 +30,15 @@ export async function POST(
     notes = {};
   }
 
-  notes.habits = { done, total: done.length };
+  notes.habits = habitState;
 
   const { error } = await db.from("daily_logs").upsert(
-    { user_id: USER_ID, log_date: date, notes: JSON.stringify(notes), updated_at: new Date().toISOString() },
+    {
+      user_id: USER_ID,
+      log_date: date,
+      notes: JSON.stringify(notes),
+      updated_at: new Date().toISOString(),
+    },
     { onConflict: "user_id,log_date" }
   );
 

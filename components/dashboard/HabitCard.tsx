@@ -4,110 +4,233 @@ import { useEffect, useRef, useState } from "react";
 import Panel from "@/components/ui/Panel";
 import { localDateKey } from "@/lib/localDate";
 
-const HABITS = [
-  "Exercise",
-  "Read",
-  "Meditate",
-  "Journal",
-  "No alcohol",
-  "Sleep by midnight",
-];
+const SIMPLE_HABITS = ["Read", "Meditate", "Journal", "Sleep by midnight"];
+const EXERCISE_OPTIONS = ["Weight lifting", "Muay thai", "Yoga", "Running", "Sauna", "Cold plunge"];
+const BAD_HABITS = ["Alcohol", "Smoking"];
+
+interface HabitState {
+  done: string[];          // simple habits checked
+  exercise: string[];      // exercise sub-selections
+  bad_habits: string[];    // bad habits logged
+  weight_kg: string;       // bodyweight
+}
 
 const STORAGE_KEY = (date: string) => `pos-habits-${date}`;
 
+const DEFAULT_STATE: HabitState = { done: [], exercise: [], bad_habits: [], weight_kg: "" };
+
 export default function HabitCard() {
   const today = localDateKey();
-  const [done, setDone] = useState<string[]>([]);
+  const [state, setState] = useState<HabitState>(DEFAULT_STATE);
+  const [showExercise, setShowExercise] = useState(false);
+  const [showBad, setShowBad] = useState(false);
   const dirtyRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load from localStorage first, then merge with server
   useEffect(() => {
     const local = localStorage.getItem(STORAGE_KEY(today));
-    if (local) setDone(JSON.parse(local));
+    if (local) setState(JSON.parse(local));
 
     fetch(`/api/habits?days=1`)
       .then((r) => r.json())
-      .then((data: Record<string, string[]>) => {
+      .then((data: Record<string, HabitState>) => {
         if (!dirtyRef.current) {
-          const server = data[today] ?? [];
-          setDone(server);
+          const server = data[today] ?? DEFAULT_STATE;
+          setState(server);
           localStorage.setItem(STORAGE_KEY(today), JSON.stringify(server));
         }
       })
       .catch(() => {});
   }, [today]);
 
-  function toggle(habit: string) {
+  function save(next: HabitState) {
     dirtyRef.current = true;
-    const next = done.includes(habit) ? done.filter((h) => h !== habit) : [...done, habit];
-    setDone(next);
+    setState(next);
     localStorage.setItem(STORAGE_KEY(today), JSON.stringify(next));
-
-    // Debounce saves — wait 600ms after last tap
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       fetch(`/api/habits/${today}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ done: next }),
+        body: JSON.stringify(next),
       }).catch((err) => console.error("[habits] save failed:", err));
     }, 600);
   }
 
-  const count = done.length;
-  const total = HABITS.length;
+  function toggleSimple(habit: string) {
+    const done = state.done.includes(habit)
+      ? state.done.filter((h) => h !== habit)
+      : [...state.done, habit];
+    save({ ...state, done });
+  }
+
+  function toggleExercise(opt: string) {
+    const exercise = state.exercise.includes(opt)
+      ? state.exercise.filter((e) => e !== opt)
+      : [...state.exercise, opt];
+    save({ ...state, exercise });
+  }
+
+  function toggleBad(habit: string) {
+    const bad_habits = state.bad_habits.includes(habit)
+      ? state.bad_habits.filter((h) => h !== habit)
+      : [...state.bad_habits, habit];
+    save({ ...state, bad_habits });
+  }
+
+  function setWeight(weight_kg: string) {
+    save({ ...state, weight_kg });
+  }
+
+  const exerciseDone = state.exercise.length > 0;
+  const totalDone = state.done.length + (exerciseDone ? 1 : 0);
+  const total = SIMPLE_HABITS.length + 1; // +1 for exercise
 
   return (
     <Panel
       title="Habits"
       action={
         <span className="num text-[10px] text-[var(--text-muted)]">
-          {count}/{total}
+          {totalDone}/{total}
         </span>
       }
     >
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-4 space-y-2">
         {/* Progress bar */}
         <div className="h-1 bg-[var(--ink-2)] rounded-full mb-3 overflow-hidden">
           <div
             className="h-full bg-[var(--ok)] rounded-full transition-all duration-300"
-            style={{ width: `${(count / total) * 100}%` }}
+            style={{ width: `${(totalDone / total) * 100}%` }}
           />
         </div>
 
+        {/* Exercise */}
+        <div>
+          <button
+            onClick={() => setShowExercise((v) => !v)}
+            className={`w-full flex items-center gap-2 py-2 px-3 rounded-lg transition-colors text-left ${
+              exerciseDone
+                ? "bg-[var(--ok)]/15 border border-[var(--ok)]/30"
+                : "bg-[var(--ink-2)] hover:bg-[var(--ink-3)] border border-transparent"
+            }`}
+          >
+            <span className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center text-[9px] transition-colors ${
+              exerciseDone ? "bg-[var(--ok)] border-[var(--ok)] text-white" : "border-[var(--ink-4)]"
+            }`}>
+              {exerciseDone && "✓"}
+            </span>
+            <span className={`flex-1 text-xs ${exerciseDone ? "text-[var(--ok)]" : "text-[var(--text-secondary)]"}`}>
+              Exercise
+            </span>
+            {state.exercise.length > 0 && (
+              <span className="text-[10px] text-[var(--text-muted)]">{state.exercise.join(", ")}</span>
+            )}
+            <span className="text-[var(--text-muted)] text-[10px]">{showExercise ? "▲" : "▼"}</span>
+          </button>
+          {showExercise && (
+            <div className="mt-1 ml-6 grid grid-cols-2 gap-1">
+              {EXERCISE_OPTIONS.map((opt) => {
+                const active = state.exercise.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => toggleExercise(opt)}
+                    className={`text-left px-2 py-1.5 rounded-lg text-[11px] transition-colors ${
+                      active
+                        ? "bg-[var(--ok)]/20 text-[var(--ok)]"
+                        : "bg-[var(--ink-2)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                    }`}
+                  >
+                    {active ? "✓ " : ""}{opt}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Simple habits */}
         <div className="grid grid-cols-2 gap-2">
-          {HABITS.map((habit) => {
-            const checked = done.includes(habit);
+          {SIMPLE_HABITS.map((habit) => {
+            const checked = state.done.includes(habit);
             return (
               <button
                 key={habit}
-                onClick={() => toggle(habit)}
+                onClick={() => toggleSimple(habit)}
                 className={`flex items-center gap-2 py-2 px-3 rounded-lg transition-colors text-left ${
                   checked
                     ? "bg-[var(--ok)]/15 border border-[var(--ok)]/30"
                     : "bg-[var(--ink-2)] hover:bg-[var(--ink-3)] border border-transparent"
                 }`}
               >
-                <span
-                  className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center text-[9px] transition-colors ${
-                    checked
-                      ? "bg-[var(--ok)] border-[var(--ok)] text-white"
-                      : "border-[var(--ink-4)]"
-                  }`}
-                >
+                <span className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center text-[9px] ${
+                  checked ? "bg-[var(--ok)] border-[var(--ok)] text-white" : "border-[var(--ink-4)]"
+                }`}>
                   {checked && "✓"}
                 </span>
-                <span
-                  className={`text-xs transition-colors ${
-                    checked ? "text-[var(--ok)]" : "text-[var(--text-secondary)]"
-                  }`}
-                >
+                <span className={`text-xs ${checked ? "text-[var(--ok)]" : "text-[var(--text-secondary)]"}`}>
                   {habit}
                 </span>
               </button>
             );
           })}
+        </div>
+
+        {/* Weight */}
+        <div className="flex items-center gap-2 bg-[var(--ink-2)] rounded-lg px-3 py-2">
+          <span className="text-xs text-[var(--text-secondary)] flex-1">Weight</span>
+          <input
+            type="number"
+            step="0.1"
+            min="30"
+            max="200"
+            value={state.weight_kg}
+            onChange={(e) => setWeight(e.target.value)}
+            onBlur={() => save(state)}
+            placeholder="—"
+            className="num w-16 bg-transparent text-right text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+          />
+          <span className="text-xs text-[var(--text-muted)]">kg</span>
+        </div>
+
+        {/* Bad habits */}
+        <div>
+          <button
+            onClick={() => setShowBad((v) => !v)}
+            className={`w-full flex items-center gap-2 py-2 px-3 rounded-lg transition-colors text-left ${
+              state.bad_habits.length > 0
+                ? "bg-[var(--danger)]/15 border border-[var(--danger)]/30"
+                : "bg-[var(--ink-2)] hover:bg-[var(--ink-3)] border border-transparent"
+            }`}
+          >
+            <span className={`text-xs flex-1 ${state.bad_habits.length > 0 ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}`}>
+              Bad habits
+            </span>
+            {state.bad_habits.length > 0 && (
+              <span className="text-[10px] text-[var(--danger)]">{state.bad_habits.join(", ")}</span>
+            )}
+            <span className="text-[var(--text-muted)] text-[10px]">{showBad ? "▲" : "▼"}</span>
+          </button>
+          {showBad && (
+            <div className="mt-1 ml-2 flex gap-2">
+              {BAD_HABITS.map((habit) => {
+                const active = state.bad_habits.includes(habit);
+                return (
+                  <button
+                    key={habit}
+                    onClick={() => toggleBad(habit)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] transition-colors ${
+                      active
+                        ? "bg-[var(--danger)]/20 text-[var(--danger)]"
+                        : "bg-[var(--ink-2)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                    }`}
+                  >
+                    {active ? "✓ " : ""}{habit}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </Panel>

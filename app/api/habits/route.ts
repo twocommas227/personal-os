@@ -21,13 +21,13 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const result: Record<string, string[]> = {};
+  const result: Record<string, unknown> = {};
   for (const row of data ?? []) {
     try {
       const notes = typeof row.notes === "string" ? JSON.parse(row.notes) : row.notes;
-      result[row.log_date] = notes?.habits?.done ?? [];
+      result[row.log_date] = notes?.habits ?? { done: [], exercise: [], bad_habits: [], weight_kg: "" };
     } catch {
-      result[row.log_date] = [];
+      result[row.log_date] = { done: [], exercise: [], bad_habits: [], weight_kg: "" };
     }
   }
 
