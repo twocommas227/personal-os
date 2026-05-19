@@ -36,7 +36,7 @@ async function verifySession(cookie: string | undefined, secret: string): Promis
   return diff === 0;
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (isPublic(pathname)) return NextResponse.next();

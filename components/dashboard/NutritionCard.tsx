@@ -57,6 +57,7 @@ export default function NutritionCard() {
         body: JSON.stringify({ text: input.trim() }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? res.statusText);
       const meal: Meal = {
         id: crypto.randomUUID(),
         name: input.trim(),
@@ -68,8 +69,8 @@ export default function NutritionCard() {
       };
       persist([...meals, meal]);
       setInput("");
-    } catch {
-      console.error("Estimate failed");
+    } catch (err) {
+      console.error("Estimate failed:", err);
     }
     setLoading(false);
   }
