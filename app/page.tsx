@@ -5,6 +5,7 @@ import HabitCard from "@/components/dashboard/HabitCard";
 import FinancePulseCard from "@/components/dashboard/FinancePulseCard";
 import NutritionCard from "@/components/dashboard/NutritionCard";
 import GoalsCard from "@/components/dashboard/GoalsCard";
+import CalendarCard from "@/components/dashboard/CalendarCard";
 
 export default function Home() {
   return (
@@ -22,6 +23,7 @@ export default function Home() {
         {/* Centre column */}
         <div className="flex flex-col gap-4">
           <SessionCard />
+          <CalendarCard />
           <HabitCard />
         </div>
 
