@@ -8,13 +8,23 @@ export async function GET(req: NextRequest) {
   if (!(await isAuthenticated())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const days = Number(req.nextUrl.searchParams.get("days") ?? "30");
-  const { data } = await db
+  const date = req.nextUrl.searchParams.get("date");
+
+  let query = db
     .from("daily_logs")
     .select("log_date, notes")
     .eq("user_id", USER_ID)
-    .gte("log_date", new Date(Date.now() - days * 86400000).toISOString().slice(0, 10))
-    .order("log_date", { ascending: false })
-    .limit(days + 1);
+    .order("log_date", { ascending: false });
+
+  if (date) {
+    query = query.eq("log_date", date).limit(1);
+  } else {
+    query = query
+      .gte("log_date", new Date(Date.now() - days * 86400000).toISOString().slice(0, 10))
+      .limit(days + 1);
+  }
+
+  const { data } = await query;
 
   const result = (data ?? []).map((row) => {
     try {

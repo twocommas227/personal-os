@@ -6,11 +6,11 @@ import { useEffect, useState } from "react";
 
 const TABS = [
   { label: "Home",    href: "/" },
-  { label: "CRM",     href: "/crm" },
+  { label: "Tasks",   href: "/tasks" },
   { label: "Brain",   href: "/brain" },
-  { label: "Finance", href: "/finance" },
-  { label: "Journal", href: "/journal" },
   { label: "Health",  href: "/health" },
+  { label: "Journal", href: "/journal" },
+  { label: "CRM",     href: "/crm" },
 ];
 
 export default function TopRail() {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const COOKIE = "pos_session";
-const PUBLIC = ["/login", "/api/auth", "/api/telegram"];
+const PUBLIC = ["/login", "/api/auth", "/api/telegram", "/api/cron"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC.some((p) => pathname.startsWith(p));
