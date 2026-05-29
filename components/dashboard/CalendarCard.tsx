@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import Panel from "@/components/ui/Panel";
 import type { CalEvent } from "@/app/api/calendar/route";
 
+const TZ = "Asia/Bangkok";
+
+/** YYYY-MM-DD in Bangkok time, regardless of the Mac's system timezone. */
 function localDateStr(date: Date): string {
-  return date.toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+  return date.toLocaleDateString("en-CA", { timeZone: TZ });
 }
 
 function sameDay(a: Date, b: Date): boolean {
@@ -14,13 +17,17 @@ function sameDay(a: Date, b: Date): boolean {
 
 function formatTime(iso: string, allDay: boolean): string {
   if (allDay) return "All day";
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ,
+  });
 }
 
 export default function CalendarCard() {
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    () => new Date(new Date().toLocaleDateString("en-CA", { timeZone: TZ }) + "T00:00:00")
+  );
 
   useEffect(() => {
     fetch("/api/calendar")
@@ -29,11 +36,13 @@ export default function CalendarCard() {
       .catch(() => setLoading(false));
   }, []);
 
-  // Build 14-day strip centred on today
-  const today = new Date();
+  // Build 14-day strip starting from today in Bangkok time
+  // Use a Date anchored to Bangkok midnight so day arithmetic is correct
+  const todayBkk = new Date(new Date().toLocaleDateString("en-CA", { timeZone: TZ }) + "T00:00:00");
+  const today = todayBkk;
   const days: Date[] = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i - 0);
+    const d = new Date(todayBkk);
+    d.setDate(todayBkk.getDate() + i);
     return d;
   });
 
@@ -77,7 +86,7 @@ export default function CalendarCard() {
         {/* Selected day events */}
         <div className="space-y-1.5">
           <p className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-            {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: TZ })}
           </p>
 
           {loading && <p className="text-xs text-[var(--text-muted)]">Loading…</p>}
