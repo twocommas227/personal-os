@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
-import { PROGRAMS, nextProgramKey, formatWorkoutPlain } from "@/lib/workouts";
+import { nextProgramKey, formatWorkoutPlain, getProgram } from "@/lib/workouts";
 import { saveWorkoutProgram } from "@/app/api/workout/route";
 
 export const maxDuration = 30;
@@ -85,7 +85,7 @@ async function getNextWorkout(): Promise<{ key: "A" | "B" | "C"; text: string } 
     }
 
     const nextKey = nextProgramKey(lastProgram);
-    const program = PROGRAMS[nextKey];
+    const program = await getProgram(nextKey);
 
     // Save today's workout program so rotation is tracked
     const today = todayTZ();

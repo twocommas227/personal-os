@@ -1,3 +1,55 @@
+import { db } from "@/lib/supabase";
+
+const USER_ID = process.env.USER_ID ?? "josh";
+/** Sentinel date used as a config key — never a real log date. */
+const CONFIG_DATE = "0001-01-01";
+
+/** Load stored program overrides from Supabase. Falls back to PROGRAMS defaults. */
+export async function loadStoredPrograms(): Promise<Partial<Record<"A" | "B" | "C", WorkoutProgram>>> {
+  try {
+    const { data } = await db
+      .from("daily_logs")
+      .select("notes")
+      .eq("user_id", USER_ID)
+      .eq("log_date", CONFIG_DATE)
+      .maybeSingle();
+    if (!data?.notes) return {};
+    const notes = typeof data.notes === "string" ? JSON.parse(data.notes) : data.notes;
+    return (notes?.workout_programs ?? {}) as Partial<Record<"A" | "B" | "C", WorkoutProgram>>;
+  } catch {
+    return {};
+  }
+}
+
+/** Persist an updated program to Supabase. */
+export async function saveStoredProgram(key: "A" | "B" | "C", program: WorkoutProgram) {
+  // Read existing config
+  const { data: existing } = await db
+    .from("daily_logs")
+    .select("notes")
+    .eq("user_id", USER_ID)
+    .eq("log_date", CONFIG_DATE)
+    .maybeSingle();
+
+  let notes: Record<string, unknown> = {};
+  try { notes = existing?.notes ? JSON.parse(existing.notes as string) : {}; } catch {}
+
+  const programs = (notes.workout_programs ?? {}) as Record<string, unknown>;
+  programs[key] = program;
+  notes.workout_programs = programs;
+
+  await db.from("daily_logs").upsert(
+    { user_id: USER_ID, log_date: CONFIG_DATE, notes: JSON.stringify(notes) },
+    { onConflict: "user_id,log_date" }
+  );
+}
+
+/** Get a program: stored version if available, else hardcoded default. */
+export async function getProgram(key: "A" | "B" | "C"): Promise<WorkoutProgram> {
+  const stored = await loadStoredPrograms();
+  return stored[key] ?? PROGRAMS[key];
+}
+
 export interface WorkoutSet {
   weight: number | "BW" | null; // null = bodyweight/no weight shown
   reps: number | string;        // string for ranges like "6–8"

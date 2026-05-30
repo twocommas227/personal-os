@@ -3,7 +3,8 @@ import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { processCapture } from "@/lib/router/processCapture";
 import { db } from "@/lib/supabase";
-import { PROGRAMS, nextProgramKey, formatWorkoutTelegram } from "@/lib/workouts";
+import { PROGRAMS, nextProgramKey, formatWorkoutTelegram, saveStoredProgram, getProgram } from "@/lib/workouts";
+import type { WorkoutProgram, WorkoutSet } from "@/lib/workouts";
 import { saveWorkoutProgram } from "@/app/api/workout/route";
 
 export const maxDuration = 60;
@@ -466,7 +467,7 @@ export async function POST(req: NextRequest) {
       }
 
       const nextKey = nextProgramKey(lastProgram);
-      const program = PROGRAMS[nextKey];
+      const program = await getProgram(nextKey);
 
       // Find when this specific program was last done
       let lastThisDate: string | null = null;
@@ -482,6 +483,82 @@ export async function POST(req: NextRequest) {
 
       const msg = formatWorkoutTelegram(program, lastThisDate);
       await sendTelegramMessage(chatId, msg);
+      return NextResponse.json({ ok: true });
+    }
+
+    // ── WORKOUT LOG: message contains "Day A/B/C" header ────────────────
+    const workoutDayMatch = text.match(/Day\s+([ABC])\b/i);
+    if (workoutDayMatch) {
+      const programKey = workoutDayMatch[1].toUpperCase() as "A" | "B" | "C";
+      await sendTelegramMessage(chatId, `💪 Parsing Day ${programKey} workout…`);
+
+      try {
+        const apiKey = process.env.ANTHROPIC_API_KEY!;
+        const client = new Anthropic({ apiKey });
+
+        const parseMsg = await client.messages.create({
+          model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
+          max_tokens: 1024,
+          system: `You are parsing a gym workout log. Extract exercises into JSON.
+Return ONLY valid JSON with this shape:
+{
+  "exercises": [
+    {
+      "name": "Exercise name",
+      "sets": [{ "weight": 25, "reps": 8 }, { "weight": 30, "reps": 10 }],
+      "note": "optional string for finishers like '20 total'"
+    }
+  ]
+}
+Rules:
+- weight is a number in kg, or null for bodyweight/no weight
+- reps is a number or a string range like "6-8"
+- "BW" weight = null
+- If a finisher has no sets (e.g. "20 total pushups"), use empty sets array and put the note
+- Output JSON only, no markdown`,
+          messages: [{ role: "user", content: text }],
+        });
+
+        const raw = (parseMsg.content[0] as { type: string; text: string }).text;
+        const jsonStr = raw.match(/\{[\s\S]*\}/)?.[0];
+        if (!jsonStr) throw new Error("No JSON in parse response");
+
+        const parsed = JSON.parse(jsonStr) as { exercises: WorkoutProgram["exercises"] };
+
+        // Load current program (stored or default) and merge exercise list
+        const current = await getProgram(programKey);
+        const updated: WorkoutProgram = {
+          ...current,
+          exercises: parsed.exercises,
+        };
+
+        await saveStoredProgram(programKey, updated);
+
+        const TZ = process.env.USER_TIMEZONE ?? "Asia/Bangkok";
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+        await saveWorkoutProgram(programKey, today);
+
+        // Build confirmation message
+        const lines = [
+          `✅ <b>Day ${programKey} · ${current.focus} logged</b>`,
+          `<i>${new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: TZ })}</i>`,
+          "",
+        ];
+        for (const ex of updated.exercises) {
+          const setStr = ex.note
+            ? ex.note
+            : (ex.sets as WorkoutSet[]).map((s) => {
+                const w = s.weight === null ? "—" : s.weight === "BW" ? "BW" : `${s.weight}kg`;
+                return `${w}×${s.reps}`;
+              }).join(" | ");
+          lines.push(`${ex.name}: ${setStr}`);
+        }
+        lines.push("", `<i>Next: Day ${nextProgramKey(programKey)}</i>`);
+
+        await sendTelegramMessage(chatId, lines.join("\n"));
+      } catch (err) {
+        await sendTelegramMessage(chatId, `❌ Could not parse workout: ${err}`);
+      }
       return NextResponse.json({ ok: true });
     }
 
