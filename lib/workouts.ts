@@ -51,14 +51,14 @@ export const PROGRAMS: Record<"A" | "B" | "C", WorkoutProgram> = {
     exercises: [
       {
         name: "Bench press",
-        sets: [{ weight: 30, reps: 8 }, { weight: 40, reps: 10 }, { weight: 45, reps: 10 }],
+        sets: [{ weight: 25, reps: 8 }, { weight: 30, reps: 10 }, { weight: 35, reps: 10 }],
       },
       {
         name: "DB overhead press",
         sets: [{ weight: 9, reps: 10 }, { weight: 10, reps: 10 }, { weight: 10, reps: 10 }],
       },
       {
-        name: "Incline DB press",
+        name: "Incline DB Flys",
         sets: [{ weight: 8, reps: 10 }, { weight: 10, reps: 10 }, { weight: 10, reps: 10 }],
       },
       {
@@ -72,7 +72,7 @@ export const PROGRAMS: Record<"A" | "B" | "C", WorkoutProgram> = {
       {
         name: "Pushups (finisher)",
         sets: [],
-        note: "50 total",
+        note: "20 total",
       },
     ],
   },
