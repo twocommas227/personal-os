@@ -6,6 +6,7 @@ import FinancePulseCard from "@/components/dashboard/FinancePulseCard";
 import NutritionCard from "@/components/dashboard/NutritionCard";
 import GoalsCard from "@/components/dashboard/GoalsCard";
 import CalendarCard from "@/components/dashboard/CalendarCard";
+import RemindersCard from "@/components/dashboard/RemindersCard";
 
 export default function Home() {
   return (
@@ -30,6 +31,7 @@ export default function Home() {
         {/* Right column */}
         <div className="flex flex-col gap-4">
           <NutritionCard />
+          <RemindersCard />
         </div>
 
       </div>
