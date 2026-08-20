@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(100000 + (Date.now() % 100000)); // bust PostgREST cache
 
+  const context = req.nextUrl.searchParams.get("context");
+  if (context) query = query.eq("context", context);
+
   if (status === "open") query = query.is("completed_at", null);
   else if (status === "done") query = query.not("completed_at", "is", null);
 

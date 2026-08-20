@@ -22,8 +22,8 @@ function formatTime(iso: string, allDay: boolean): string {
   });
 }
 
-export default function CalendarCard() {
-  const [events, setEvents] = useState<CalEvent[]>([]);
+export default function CalendarCard({ source }: { source?: "google" | "apple" }) {
+  const [allEvents, setAllEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(
     () => new Date(new Date().toLocaleDateString("en-CA", { timeZone: TZ }) + "T00:00:00")
@@ -32,9 +32,11 @@ export default function CalendarCard() {
   useEffect(() => {
     fetch("/api/calendar")
       .then((r) => r.json())
-      .then((data) => { setEvents(data); setLoading(false); })
+      .then((data) => { setAllEvents(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  const events = source ? allEvents.filter((e) => e.calendar === source) : allEvents;
 
   // Build 14-day strip starting from today in Bangkok time
   // Use a Date anchored to Bangkok midnight so day arithmetic is correct

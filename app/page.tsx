@@ -1,37 +1,50 @@
 import Shell from "@/components/dashboard/Shell";
 import OperatorCard from "@/components/dashboard/OperatorCard";
-import SessionCard from "@/components/dashboard/SessionCard";
 import HabitCard from "@/components/dashboard/HabitCard";
 import FinancePulseCard from "@/components/dashboard/FinancePulseCard";
 import NutritionCard from "@/components/dashboard/NutritionCard";
-import GoalsCard from "@/components/dashboard/GoalsCard";
 import CalendarCard from "@/components/dashboard/CalendarCard";
 import RemindersCard from "@/components/dashboard/RemindersCard";
+import ContextTasksCard from "@/components/dashboard/ContextTasksCard";
+
+function ContextHeader({ label, color }: { label: string; color: string }) {
+  return (
+    <div className={`flex items-center gap-2 px-1 pb-1`}>
+      <div className={`w-2 h-2 rounded-full ${color}`} />
+      <span className="text-[10px] font-mono font-semibold tracking-widest uppercase text-[var(--text-muted)]">
+        {label}
+      </span>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
     <Shell>
-      {/* 3-column grid: narrow | wide | narrow */}
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr_280px] gap-4 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto">
 
-        {/* Left column */}
+        {/* ── PERSONAL ── */}
         <div className="flex flex-col gap-4">
+          <ContextHeader label="Personal" color="bg-[var(--ok)]" />
           <OperatorCard />
-          <FinancePulseCard />
-          <GoalsCard />
-        </div>
-
-        {/* Centre column */}
-        <div className="flex flex-col gap-4">
-          <SessionCard />
-          <CalendarCard />
+          <CalendarCard source="apple" />
           <HabitCard />
-        </div>
-
-        {/* Right column */}
-        <div className="flex flex-col gap-4">
           <NutritionCard />
           <RemindersCard />
+        </div>
+
+        {/* ── KRITAMORN ── */}
+        <div className="flex flex-col gap-4">
+          <ContextHeader label="Kritamorn" color="bg-[var(--accent)]" />
+          <ContextTasksCard context="kritamorn" label="Kritamorn" />
+          <CalendarCard source="google" />
+        </div>
+
+        {/* ── TWO COMMAS ── */}
+        <div className="flex flex-col gap-4">
+          <ContextHeader label="Two Commas" color="bg-[var(--warn)]" />
+          <ContextTasksCard context="two_commas" label="Two Commas" />
+          <FinancePulseCard />
         </div>
 
       </div>
