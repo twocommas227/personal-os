@@ -16,6 +16,14 @@ export interface CalEvent {
 let cache: { events: CalEvent[]; at: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
 
+// Safety cap on recurrence expansion. The windowEnd break below is what
+// actually terminates the loop; this only guards a runaway rule. It must be
+// generous: the iterator starts at the event's original DTSTART, so a weekly
+// event from two years ago needs ~100 steps just to reach today's window, and
+// a daily one needs thousands. Too low a cap silently drops old recurring
+// events before they ever enter the window.
+const MAX_OCCURRENCES = 10000;
+
 async function fetchAndParse(url: string, calendar: "google" | "apple"): Promise<CalEvent[]> {
   const res = await fetch(url, { cache: "no-store" });
   const text = await res.text();
@@ -49,7 +57,7 @@ async function fetchAndParse(url: string, calendar: "google" | "apple"): Promise
         type Occ = { time: ICAL.Time; periodKey: string };
         const candidates: Occ[] = [];
 
-        while ((next = iter.next()) && count < 500) {
+        while ((next = iter.next()) && count < MAX_OCCURRENCES) {
           count++;
           if (next.compare(windowEnd) > 0) break;
           // Group key: the recurrence period
@@ -96,7 +104,7 @@ async function fetchAndParse(url: string, calendar: "google" | "apple"): Promise
         }
       } else {
         // Normal iteration — no BYSETPOS
-        while ((next = iter.next()) && count < 60) {
+        while ((next = iter.next()) && count < MAX_OCCURRENCES) {
           if (next.compare(windowEnd) > 0) break;
           if (next.compare(windowStart) >= 0) {
             const duration = event.duration;
@@ -148,12 +156,28 @@ export async function GET() {
     });
   }
 
-  const googleUrl = process.env.GOOGLE_CALENDAR_ICAL_URL;
-  const appleUrl = process.env.APPLE_CALENDAR_ICAL_URL;
+  // Each iCloud/Google share URL exposes exactly one calendar, so both vars
+  // accept a comma-separated list — one URL per calendar you want included.
+  const urlList = (value: string | undefined): string[] =>
+    (value ?? "")
+      .split(",")
+      .map((u) => u.trim())
+      .filter(Boolean);
 
-  const fetches: Promise<CalEvent[]>[] = [];
-  if (googleUrl) fetches.push(fetchAndParse(googleUrl, "google").catch(() => []));
-  if (appleUrl) fetches.push(fetchAndParse(appleUrl, "apple").catch(() => []));
+  const fetches: Promise<CalEvent[]>[] = [
+    ...urlList(process.env.GOOGLE_CALENDAR_ICAL_URL).map((url) =>
+      fetchAndParse(url, "google").catch((err) => {
+        console.error("[calendar] google feed failed:", url, err);
+        return [] as CalEvent[];
+      })
+    ),
+    ...urlList(process.env.APPLE_CALENDAR_ICAL_URL).map((url) =>
+      fetchAndParse(url, "apple").catch((err) => {
+        console.error("[calendar] apple feed failed:", url, err);
+        return [] as CalEvent[];
+      })
+    ),
+  ];
 
   const results = await Promise.all(fetches);
   const events = results
