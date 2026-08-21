@@ -223,8 +223,11 @@ export default function HabitCard() {
     >
       <div className="px-4 pb-4 space-y-2">
         {/* Progress bar */}
-        <div className="h-1 bg-[var(--ink-2)] rounded-full mb-3 overflow-hidden">
-          <div className="h-full bg-[var(--ok)] rounded-full transition-all duration-300" style={{ width: `${(totalDone / total) * 100}%` }} />
+        <div className="h-1.5 bg-[var(--ink-2)] rounded-full mb-3 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-[var(--ok)] to-[var(--accent)]"
+            style={{ width: `${(totalDone / total) * 100}%` }}
+          />
         </div>
 
         {/* Exercise */}
@@ -243,7 +246,7 @@ export default function HabitCard() {
             <span className="text-[var(--text-muted)] text-[10px]">{showExercise ? "▲" : "▼"}</span>
           </button>
           {showExercise && (
-            <div className="mt-1 ml-6 grid grid-cols-2 lg:grid-cols-3 gap-1">
+            <div className="mt-1 ml-6 grid grid-cols-2 gap-1">
               {EXERCISE_OPTIONS.map((opt) => {
                 const active = state.exercise.includes(opt);
                 return (
@@ -260,7 +263,7 @@ export default function HabitCard() {
         </div>
 
         {/* Simple habits */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {SIMPLE_HABITS.map((habit) => {
             const checked = state.done.includes(habit);
             return (

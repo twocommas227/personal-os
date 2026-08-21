@@ -1,31 +1,31 @@
 @import "tailwindcss";
 
-/* ── Color tokens ───────────────────────────────────────────── */
+/* ── Color tokens · Ember ───────────────────────────────────── */
 :root {
-  /* Neutrals: ink-0 (darkest) → ink-4 (lightest) */
-  --ink-0: oklch(10% 0.005 264);
-  --ink-1: oklch(16% 0.008 264);
-  --ink-2: oklch(22% 0.010 264);
-  --ink-3: oklch(35% 0.012 264);
-  --ink-4: oklch(55% 0.010 264);
+  /* Neutrals: warm charcoal, ink-0 (darkest) → ink-4 (lightest) */
+  --ink-0: oklch(17% 0.016 52);
+  --ink-1: oklch(21% 0.020 52);
+  --ink-2: oklch(27% 0.024 52);
+  --ink-3: oklch(38% 0.026 52);
+  --ink-4: oklch(58% 0.024 52);
 
   /* Text */
-  --text-primary: oklch(94% 0.005 264);
-  --text-secondary: oklch(70% 0.008 264);
-  --text-muted: oklch(50% 0.008 264);
+  --text-primary: oklch(96% 0.010 62);
+  --text-secondary: oklch(78% 0.020 58);
+  --text-muted: oklch(60% 0.024 55);
 
-  /* Accent */
-  --accent: oklch(68% 0.20 264);
-  --accent-dim: oklch(50% 0.15 264);
+  /* Accent — amber */
+  --accent: oklch(78% 0.15 62);
+  --accent-dim: oklch(60% 0.12 62);
 
   /* Semantic */
-  --ok: oklch(70% 0.18 145);
-  --warn: oklch(75% 0.18 70);
-  --danger: oklch(65% 0.22 25);
+  --ok: oklch(76% 0.16 155);
+  --warn: oklch(80% 0.14 88);
+  --danger: oklch(66% 0.20 25);
 
   /* Glass card */
-  --glass-bg: oklch(16% 0.008 264 / 0.7);
-  --glass-border: oklch(35% 0.012 264 / 0.4);
+  --glass-bg: oklch(21% 0.020 52 / 0.74);
+  --glass-border: oklch(44% 0.030 52 / 0.5);
 
   --background: var(--ink-0);
   --foreground: var(--text-primary);
@@ -54,7 +54,12 @@ html {
 }
 
 body {
-  background: var(--ink-0);
+  /* Twin glow behind the page so cards read as lit, not pasted on a flat void */
+  background:
+    radial-gradient(1100px 600px at 10% -8%, oklch(30% 0.070 48 / 0.44), transparent 62%),
+    radial-gradient(950px 540px at 94% 2%, oklch(26% 0.050 340 / 0.30), transparent 58%),
+    var(--ink-0);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -68,8 +73,32 @@ body {
   -webkit-backdrop-filter: blur(12px);
 }
 
+/* Context-tinted cards — a wash in the card ground, not a stripe */
+.tint-personal {
+  background:
+    linear-gradient(180deg, oklch(from var(--ok) l c h / 0.10), transparent 42%),
+    var(--glass-bg);
+}
+.tint-kritamorn {
+  background:
+    linear-gradient(180deg, oklch(from var(--accent) l c h / 0.10), transparent 42%),
+    var(--glass-bg);
+}
+.tint-twocommas {
+  background:
+    linear-gradient(180deg, oklch(from var(--warn) l c h / 0.10), transparent 42%),
+    var(--glass-bg);
+}
+
 /* ── Monospace numbers ──────────────────────────────────────── */
 .num {
   font-family: var(--font-geist-mono), monospace;
   font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

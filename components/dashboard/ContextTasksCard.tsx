@@ -16,16 +16,19 @@ interface Task {
 interface Props {
   context: "personal" | "kritamorn" | "two_commas";
   label: string;
+  /** Optional context wash class from globals.css, e.g. "tint-kritamorn" */
+  tint?: string;
 }
 
-const URGENCY_DOT: Record<string, string> = {
-  today: "🔴",
-  this_week: "🟡",
-  this_month: "🟢",
-  someday: "⚪",
+// Urgency reads as a severity stripe rather than an emoji you have to decode
+const URGENCY_STRIPE: Record<string, string> = {
+  today: "bg-[var(--danger)]",
+  this_week: "bg-[var(--warn)]",
+  this_month: "bg-[var(--ok)]",
+  someday: "bg-[var(--ink-4)]",
 };
 
-export default function ContextTasksCard({ context, label }: Props) {
+export default function ContextTasksCard({ context, label, tint = "" }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
@@ -82,6 +85,7 @@ export default function ContextTasksCard({ context, label }: Props) {
 
   return (
     <Panel
+      className={tint}
       title={`${label} Tasks`}
       action={
         <Link href="/tasks" className="text-[10px] text-[var(--accent)] hover:opacity-80 transition-opacity">
@@ -100,7 +104,11 @@ export default function ContextTasksCard({ context, label }: Props) {
               onClick={() => complete(task.id)}
               className="w-3.5 h-3.5 rounded border border-[var(--ink-4)] flex-shrink-0 hover:border-[var(--ok)] hover:bg-[var(--ok)]/20 transition-colors"
             />
-            <span className="text-[10px] flex-shrink-0">{URGENCY_DOT[task.urgency] ?? "⚪"}</span>
+            <span
+              className={`w-[3px] h-4 rounded-sm flex-shrink-0 ${URGENCY_STRIPE[task.urgency] ?? "bg-[var(--ink-4)]"}`}
+              title={task.urgency.replace("_", " ")}
+            />
+
             <span className="flex-1 text-xs text-[var(--text-secondary)] truncate">
               {task.key && <span className="text-[var(--warn)] mr-1">★</span>}
               {task.title}

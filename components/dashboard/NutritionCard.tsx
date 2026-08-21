@@ -188,14 +188,30 @@ export default function NutritionCard() {
       }
     >
       <div className="px-4 pb-4 space-y-3">
-        {/* Totals */}
+        {/* Totals — bar under each number shows progress toward a rough daily target */}
         <div className="grid grid-cols-4 gap-1.5 text-center">
-          {(["kcal", "p", "c", "f"] as const).map((key) => (
-            <div key={key} className="bg-[var(--ink-2)] rounded-lg py-2">
+          {(
+            [
+              ["kcal", 2400, "var(--accent)"],
+              ["p", 170, "var(--ok)"],
+              ["c", 280, "var(--warn)"],
+              ["f", 80, "var(--danger)"],
+            ] as const
+          ).map(([key, target, color]) => (
+            <div key={key} className="bg-[var(--ink-2)] rounded-lg py-2 px-1.5">
               <p className="num text-sm font-semibold text-[var(--text-primary)]">
                 {foodMeals.length ? totals[key] : "—"}
               </p>
               <p className="text-[9px] font-mono uppercase text-[var(--text-muted)]">{key}</p>
+              <div className="h-[3px] rounded-full bg-[var(--ink-3)] mt-1.5 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-[width] duration-500"
+                  style={{
+                    width: `${Math.min(100, foodMeals.length ? (totals[key] / target) * 100 : 0)}%`,
+                    background: color,
+                  }}
+                />
+              </div>
             </div>
           ))}
         </div>

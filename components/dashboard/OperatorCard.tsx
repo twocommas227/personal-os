@@ -2,7 +2,7 @@ import Panel from "@/components/ui/Panel";
 
 export default function OperatorCard() {
   return (
-    <Panel title="Operator">
+    <Panel title="Operator" className="tint-personal">
       <div className="px-4 pb-4 space-y-3">
         <div>
           <p className="text-lg font-semibold">Josh Decker</p>
