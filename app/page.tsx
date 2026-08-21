@@ -41,7 +41,8 @@ export default function Home() {
           {/* ── SCHEDULE + WORK ── */}
           <div className="flex flex-col gap-4">
             <SectionHeader label="Schedule" color="bg-[var(--ok)]" />
-            <CalendarCard source="apple" />
+            {/* Both calendars in one view — events carry an A/G tag */}
+            <CalendarCard />
 
             <SectionHeader label="Kritamorn" color="bg-[var(--accent)]" />
             <ContextTasksCard context="kritamorn" label="Kritamorn" tint="tint-kritamorn" />
