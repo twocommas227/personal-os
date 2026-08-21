@@ -10,12 +10,19 @@ const KIND_LABEL: Record<string, string> = {
   idea: "idea",
 };
 
+const SUGGESTIONS = [
+  "What's on today?",
+  "What's my next workout?",
+  "How are my habits this week?",
+  "What's open for Two Commas?",
+];
+
 function greeting(): string {
   const hour = Number(
     new Date().toLocaleString("en-US", {
       hour: "2-digit",
       hour12: false,
-      timeZone: process.env.NEXT_PUBLIC_USER_TIMEZONE ?? "Asia/Bangkok",
+      timeZone: "Asia/Bangkok",
     })
   );
   if (hour < 12) return "Good morning";
@@ -23,45 +30,62 @@ function greeting(): string {
   return "Good evening";
 }
 
+type Status = "idle" | "loading" | "answer" | "saved" | "error";
+
 export default function HeroAsk() {
   const [text, setText] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [result, setResult] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [answer, setAnswer] = useState("");
+  const [note, setNote] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  async function submit() {
-    if (!text.trim() || status === "loading") return;
+  async function send(value?: string) {
+    const payload = (value ?? text).trim();
+    if (!payload || status === "loading") return;
+
     setStatus("loading");
+    setAnswer("");
+    setNote("");
+
     try {
-      const res = await fetch("/api/capture", {
+      const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text: payload }),
       });
-      if (!res.ok) throw new Error("Failed");
       const data = await res.json();
-      const kind = data.classification?.kind ?? "note";
-      setResult(`Julie filed that as a ${KIND_LABEL[kind] ?? kind}`);
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+
+      if (data.mode === "answer") {
+        setAnswer(data.answer);
+        setStatus("answer");
+      } else {
+        const kind = data.classification?.kind ?? "note";
+        setNote(`Filed as a ${KIND_LABEL[kind] ?? kind}`);
+        setStatus("saved");
+        setTimeout(() => setStatus((s) => (s === "saved" ? "idle" : s)), 4000);
+      }
       setText("");
-      setStatus("success");
-      setTimeout(() => setStatus("idle"), 4000);
-    } catch {
-      setResult("Julie couldn't save that — try again");
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Something went wrong");
       setStatus("error");
-      setTimeout(() => setStatus("idle"), 4000);
     }
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      submit();
+      send();
     }
+  }
+
+  function ask(q: string) {
+    setText(q);
+    send(q);
   }
 
   return (
     <section className="relative overflow-hidden rounded-3xl border border-[var(--glass-border)]">
-      {/* Ambient wash — keeps the hero from reading as a flat slab */}
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10"
@@ -73,20 +97,22 @@ export default function HeroAsk() {
         }}
       />
 
-      <div className="px-6 py-9 sm:px-10 sm:py-12 flex flex-col items-center text-center">
-        {/* Julie — the command centre's operator */}
+      <div className="px-6 py-9 sm:px-10 sm:py-11 flex flex-col items-center text-center">
+        {/* Julie */}
         <div className="flex items-center gap-2.5 mb-4">
           <span className="relative w-9 h-9 rounded-full bg-[var(--ink-2)] border border-[var(--glass-border)] grid place-items-center font-mono text-[13px] font-bold text-[var(--accent)]">
             J
             <span
-              className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--ok)] border-2 border-[var(--ink-1)]"
+              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--ink-1)] ${
+                status === "loading" ? "bg-[var(--accent)] animate-pulse" : "bg-[var(--ok)]"
+              }`}
               aria-hidden="true"
             />
           </span>
           <span className="text-left">
             <span className="block text-[13px] font-semibold leading-tight">Julie</span>
             <span className="block text-[10px] font-mono uppercase tracking-[0.14em] text-[var(--text-muted)]">
-              online
+              {status === "loading" ? "thinking" : "online"}
             </span>
           </span>
         </div>
@@ -113,36 +139,69 @@ export default function HeroAsk() {
               onChange={(e) => setText(e.target.value)}
               onKeyDown={onKeyDown}
               rows={1}
-              placeholder="Capture a task, log a thought, note a decision…"
+              placeholder="Ask a question, or capture a task or thought…"
               className="flex-1 bg-transparent resize-none outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] max-h-32 py-1"
             />
             <button
-              onClick={submit}
+              onClick={() => send()}
               disabled={!text.trim() || status === "loading"}
               className="px-4 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--ink-0)] text-xs font-semibold disabled:opacity-40 hover:opacity-90 transition-opacity flex-shrink-0"
             >
-              {status === "loading" ? "…" : "Send"}
+              {status === "loading" ? "…" : "Ask"}
             </button>
           </div>
 
-          <p
-            className="mt-2.5 text-[11px] h-4 font-mono"
-            style={{
-              color:
-                status === "success"
-                  ? "var(--ok)"
-                  : status === "error"
-                  ? "var(--danger)"
-                  : "var(--text-muted)",
-            }}
-            aria-live="polite"
-          >
-            {status === "loading"
-              ? "Julie is working on it…"
-              : status === "idle"
-              ? "Enter to send · Julie files it for you"
-              : result}
-          </p>
+          {/* Answer */}
+          {status === "answer" && answer && (
+            <div className="mt-3 text-left rounded-2xl border border-[var(--glass-border)] bg-[var(--ink-1)]/70 px-4 py-3">
+              <p className="text-sm text-[var(--text-secondary)] whitespace-pre-line leading-relaxed">
+                {answer}
+              </p>
+              <button
+                onClick={() => { setStatus("idle"); setAnswer(""); }}
+                className="mt-2.5 text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Status line */}
+          {status !== "answer" && (
+            <p
+              className="mt-2.5 text-[11px] h-4 font-mono"
+              style={{
+                color:
+                  status === "saved"
+                    ? "var(--ok)"
+                    : status === "error"
+                    ? "var(--danger)"
+                    : "var(--text-muted)",
+              }}
+              aria-live="polite"
+            >
+              {status === "loading"
+                ? "Julie is looking that up…"
+                : status === "idle"
+                ? "Ask a question, or just capture — Julie tells the difference"
+                : note}
+            </p>
+          )}
+
+          {/* Suggested questions */}
+          {status === "idle" && (
+            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+              {SUGGESTIONS.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => ask(q)}
+                  className="text-[11px] px-3 py-1.5 rounded-full border border-[var(--glass-border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-colors"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
