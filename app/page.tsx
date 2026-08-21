@@ -1,4 +1,5 @@
 import Shell from "@/components/dashboard/Shell";
+import HeroAsk from "@/components/dashboard/HeroAsk";
 import TodayBand from "@/components/dashboard/TodayBand";
 import OperatorCard from "@/components/dashboard/OperatorCard";
 import HabitCard from "@/components/dashboard/HabitCard";
@@ -25,7 +26,10 @@ export default function Home() {
     <Shell>
       <div className="max-w-7xl mx-auto flex flex-col gap-5">
 
-        {/* ── TODAY BAND · state of the day, before any detail ── */}
+        {/* ── COMMAND BAR · ask/capture anything ── */}
+        <HeroAsk />
+
+        {/* ── TODAY TILES · state of the day, before any detail ── */}
         <TodayBand />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">

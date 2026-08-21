@@ -23,36 +23,63 @@ interface Reminder {
   remind_at: string;
 }
 
-function Ring({ done, total }: { done: number; total: number }) {
-  const r = 16;
-  const circumference = 2 * Math.PI * r;
-  const pct = total > 0 ? done / total : 0;
+/** A stat tile: icon chip, badge, hero number, supporting line. */
+function Tile({
+  icon,
+  label,
+  badge,
+  children,
+}: {
+  icon: string;
+  label: string;
+  badge?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <svg viewBox="0 0 40 40" className="w-16 h-16 flex-shrink-0" aria-hidden="true">
-      <circle cx="20" cy="20" r={r} fill="none" strokeWidth="7" className="stroke-[var(--ink-2)]" />
-      <circle
-        cx="20"
-        cy="20"
-        r={r}
-        fill="none"
-        strokeWidth="7"
-        strokeLinecap="round"
-        className="stroke-[var(--ok)] transition-[stroke-dashoffset] duration-500"
-        strokeDasharray={circumference}
-        strokeDashoffset={circumference * (1 - pct)}
-        style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%" }}
-      />
-    </svg>
+    <div className="glass rounded-2xl p-4 flex flex-col gap-3 min-w-0">
+      <div className="flex items-center gap-2">
+        <span
+          className="w-7 h-7 rounded-xl bg-[var(--ink-2)] grid place-items-center text-[13px] flex-shrink-0"
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+        <span className="text-[10px] font-mono uppercase tracking-[0.14em] text-[var(--text-muted)] flex-1 truncate">
+          {label}
+        </span>
+        {badge && (
+          <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[var(--ink-2)] text-[var(--text-muted)] flex-shrink-0">
+            {badge}
+          </span>
+        )}
+      </div>
+      {children}
+    </div>
   );
 }
 
-function Cell({ label, children }: { label: string; children: React.ReactNode }) {
+function Hero({ value, unit, sub }: { value: string; unit?: string; sub?: string }) {
   return (
-    <div className="px-5 py-4 min-w-0">
-      <p className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-2.5">
-        {label}
+    <div className="min-w-0">
+      <p className="num text-[26px] leading-none font-semibold tracking-tight">
+        {value}
+        {unit && <span className="text-[var(--text-muted)] text-sm ml-1.5">{unit}</span>}
       </p>
-      {children}
+      {sub && <p className="text-[11px] text-[var(--text-muted)] mt-1.5 truncate">{sub}</p>}
+    </div>
+  );
+}
+
+/** Five dots — one per habit — so completion reads as shape, not just a number. */
+function HabitPips({ done, total }: { done: number; total: number }) {
+  return (
+    <div className="flex gap-1.5" role="img" aria-label={`${done} of ${total} habits done`}>
+      {Array.from({ length: total }, (_, i) => (
+        <span
+          key={i}
+          className={`h-1.5 flex-1 rounded-full ${i < done ? "bg-[var(--ok)]" : "bg-[var(--ink-2)]"}`}
+        />
+      ))}
     </div>
   );
 }
@@ -61,6 +88,7 @@ export default function TodayBand() {
   const today = localDateKey();
   const [habitsDone, setHabitsDone] = useState(0);
   const [habitNames, setHabitNames] = useState<string[]>([]);
+  const [weight, setWeight] = useState("");
   const [meals, setMeals] = useState<Meal[]>([]);
   const [nextEvent, setNextEvent] = useState<CalEvent | null>(null);
   const [nextReminder, setNextReminder] = useState<Reminder | null>(null);
@@ -68,13 +96,12 @@ export default function TodayBand() {
   useEffect(() => {
     fetch(`/api/habits?date=${today}`)
       .then((r) => r.json())
-      .then((data: Record<string, { done?: string[]; exercise?: string[] }>) => {
+      .then((data: Record<string, { done?: string[]; exercise?: string[]; weight_kg?: string }>) => {
         const day = data[today] ?? {};
-        const done = day.done ?? [];
-        const exercise = day.exercise ?? [];
-        const names = [...done, ...(exercise.length > 0 ? ["Exercise"] : [])];
+        const names = [...(day.done ?? []), ...((day.exercise ?? []).length > 0 ? ["Exercise"] : [])];
         setHabitNames(names);
         setHabitsDone(names.length);
+        setWeight(day.weight_kg ?? "");
       })
       .catch(() => {});
 
@@ -106,28 +133,12 @@ export default function TodayBand() {
   }, [today]);
 
   const kcal = Math.round(meals.reduce((s, m) => s + (m.kcal ?? 0), 0));
-  const p = Math.round(meals.reduce((s, m) => s + (m.p ?? 0), 0));
-  const c = Math.round(meals.reduce((s, m) => s + (m.c ?? 0), 0));
-  const f = Math.round(meals.reduce((s, m) => s + (m.f ?? 0), 0));
+  const protein = Math.round(meals.reduce((s, m) => s + (m.p ?? 0), 0));
 
-  function eventTime(e: CalEvent) {
-    if (e.allDay) return "All day";
-    return new Date(e.start).toLocaleTimeString("en-US", {
-      hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ,
-    });
-  }
-
-  function eventDay(e: CalEvent) {
-    const d = new Date(e.start).toLocaleDateString("en-CA", { timeZone: TZ });
-    if (d === today) return "";
-    return new Date(e.start).toLocaleDateString("en-US", {
-      weekday: "short", timeZone: TZ,
-    }) + " ";
-  }
-
-  function reminderWhen(iso: string) {
+  function whenLabel(iso: string, allDay = false) {
     const d = new Date(iso);
     const dateStr = d.toLocaleDateString("en-CA", { timeZone: TZ });
+    if (allDay) return dateStr === today ? "All day" : d.toLocaleDateString("en-US", { weekday: "short", timeZone: TZ });
     const time = d.toLocaleTimeString("en-US", {
       hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ,
     });
@@ -136,73 +147,62 @@ export default function TodayBand() {
   }
 
   return (
-    <div className="glass rounded-2xl overflow-hidden">
-      <div className="grid grid-cols-1 md:grid-cols-[1.15fr_1fr_1fr] divide-y md:divide-y-0 md:divide-x divide-[var(--glass-border)]">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-        {/* Habits ring */}
-        <Cell label="Habits · Today">
-          <div className="flex items-center gap-4">
-            <Ring done={habitsDone} total={TOTAL_HABITS} />
-            <div className="min-w-0">
-              <p className="num text-2xl font-semibold leading-none">
-                {habitsDone}
-                <span className="text-[var(--text-muted)] text-base">/{TOTAL_HABITS}</span>
-              </p>
-              <p className="text-[11px] text-[var(--text-muted)] mt-1.5 truncate">
-                {habitNames.length ? habitNames.join(" · ") : "Nothing logged yet"}
-              </p>
-            </div>
-          </div>
-        </Cell>
+      {/* Habits */}
+      <Tile icon="✳️" label="Habits" badge="Today">
+        <Hero
+          value={String(habitsDone)}
+          unit={`/ ${TOTAL_HABITS}`}
+          sub={habitNames.length ? habitNames.join(" · ") : "Nothing logged yet"}
+        />
+        <HabitPips done={habitsDone} total={TOTAL_HABITS} />
+      </Tile>
 
-        {/* Nutrition */}
-        <Cell label="Nutrition">
-          <p className="num text-2xl font-semibold leading-none">
-            {meals.length ? kcal.toLocaleString() : "—"}
-            <span className="text-[var(--text-muted)] text-sm ml-1.5">kcal</span>
-          </p>
-          <div className="flex gap-1.5 mt-2.5 flex-wrap">
-            {([["p", p, "var(--ok)"], ["c", c, "var(--warn)"], ["f", f, "var(--danger)"]] as const).map(
-              ([key, val, color]) => (
-                <span
-                  key={key}
-                  className="num text-[10.5px] px-2.5 py-1 rounded-full border border-[var(--glass-border)]"
-                  style={{ color: meals.length ? color : "var(--text-muted)" }}
-                >
-                  {meals.length ? val : "—"} {key}
-                </span>
-              )
+      {/* Nutrition */}
+      <Tile icon="🍽️" label="Nutrition" badge="Today">
+        <Hero
+          value={meals.length ? kcal.toLocaleString() : "—"}
+          unit="kcal"
+          sub={meals.length ? `${protein}g protein · ${meals.length} meals` : "Nothing logged yet"}
+        />
+      </Tile>
+
+      {/* Weight */}
+      <Tile icon="⚖️" label="Weight" badge="Today">
+        <Hero
+          value={weight || "—"}
+          unit={weight ? "kg" : undefined}
+          sub={weight ? "Logged today" : "Not logged today"}
+        />
+      </Tile>
+
+      {/* Next up */}
+      <Tile icon="📅" label="Next up">
+        {nextEvent ? (
+          <div className="min-w-0">
+            <p className="num text-[15px] font-semibold text-[var(--accent)] leading-none">
+              {whenLabel(nextEvent.start, nextEvent.allDay)}
+            </p>
+            <p className="text-[13px] mt-1.5 truncate">{nextEvent.title}</p>
+            {nextReminder && (
+              <p className="text-[11px] text-[var(--text-muted)] mt-1 truncate">
+                Then {whenLabel(nextReminder.remind_at)} · {nextReminder.message}
+              </p>
             )}
           </div>
-        </Cell>
-
-        {/* Next up */}
-        <Cell label="Next up">
-          {nextEvent ? (
-            <>
-              <p className="text-sm font-medium truncate">
-                <span className="num text-[var(--accent)] mr-2">
-                  {eventDay(nextEvent)}{eventTime(nextEvent)}
-                </span>
-                {nextEvent.title}
-              </p>
-              {nextReminder && (
-                <p className="text-[11px] text-[var(--text-muted)] mt-1.5 truncate">
-                  Then <span className="num">{reminderWhen(nextReminder.remind_at)}</span> · {nextReminder.message}
-                </p>
-              )}
-            </>
-          ) : nextReminder ? (
-            <p className="text-sm font-medium truncate">
-              <span className="num text-[var(--accent)] mr-2">{reminderWhen(nextReminder.remind_at)}</span>
-              {nextReminder.message}
+        ) : nextReminder ? (
+          <div className="min-w-0">
+            <p className="num text-[15px] font-semibold text-[var(--accent)] leading-none">
+              {whenLabel(nextReminder.remind_at)}
             </p>
-          ) : (
-            <p className="text-sm text-[var(--text-muted)] italic">Nothing scheduled</p>
-          )}
-        </Cell>
+            <p className="text-[13px] mt-1.5 truncate">{nextReminder.message}</p>
+          </div>
+        ) : (
+          <p className="text-[13px] text-[var(--text-muted)] italic">Nothing scheduled</p>
+        )}
+      </Tile>
 
-      </div>
     </div>
   );
 }
