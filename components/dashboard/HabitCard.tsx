@@ -243,7 +243,7 @@ export default function HabitCard() {
             <span className="text-[var(--text-muted)] text-[10px]">{showExercise ? "▲" : "▼"}</span>
           </button>
           {showExercise && (
-            <div className="mt-1 ml-6 grid grid-cols-2 gap-1">
+            <div className="mt-1 ml-6 grid grid-cols-2 lg:grid-cols-3 gap-1">
               {EXERCISE_OPTIONS.map((opt) => {
                 const active = state.exercise.includes(opt);
                 return (
@@ -260,7 +260,7 @@ export default function HabitCard() {
         </div>
 
         {/* Simple habits */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           {SIMPLE_HABITS.map((habit) => {
             const checked = state.done.includes(habit);
             return (
