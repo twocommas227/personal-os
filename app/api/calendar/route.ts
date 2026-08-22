@@ -183,8 +183,17 @@ export async function GET() {
   ];
 
   const results = await Promise.all(fetches);
+
+  // Dedupe by id — the same calendar listed twice, or a calendar subscribed to
+  // from both accounts, would otherwise emit every event more than once.
+  const seen = new Set<string>();
   const events = results
     .flat()
+    .filter((e) => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
+    })
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
   cache = { events, at: Date.now() };
