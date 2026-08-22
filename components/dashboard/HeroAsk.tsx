@@ -85,7 +85,7 @@ export default function HeroAsk() {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-[var(--glass-border)]">
+    <section className="relative overflow-hidden rounded-2xl border border-[var(--glass-border)] w-full max-w-3xl mx-auto">
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10"

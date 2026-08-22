@@ -88,20 +88,19 @@ export default function TodayBand() {
   const today = localDateKey();
   const [habitsDone, setHabitsDone] = useState(0);
   const [habitNames, setHabitNames] = useState<string[]>([]);
-  const [weight, setWeight] = useState("");
   const [meals, setMeals] = useState<Meal[]>([]);
   const [nextEvent, setNextEvent] = useState<CalEvent | null>(null);
-  const [nextReminder, setNextReminder] = useState<Reminder | null>(null);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const nextReminder = reminders[0] ?? null;
 
   useEffect(() => {
     fetch(`/api/habits?date=${today}`)
       .then((r) => r.json())
-      .then((data: Record<string, { done?: string[]; exercise?: string[]; weight_kg?: string }>) => {
+      .then((data: Record<string, { done?: string[]; exercise?: string[] }>) => {
         const day = data[today] ?? {};
         const names = [...(day.done ?? []), ...((day.exercise ?? []).length > 0 ? ["Exercise"] : [])];
         setHabitNames(names);
         setHabitsDone(names.length);
-        setWeight(day.weight_kg ?? "");
       })
       .catch(() => {});
 
@@ -127,7 +126,7 @@ export default function TodayBand() {
     fetch("/api/reminders")
       .then((r) => r.json())
       .then((data: Reminder[]) => {
-        if (Array.isArray(data) && data.length) setNextReminder(data[0]);
+        if (Array.isArray(data)) setReminders(data);
       })
       .catch(() => {});
   }, [today]);
@@ -168,12 +167,16 @@ export default function TodayBand() {
         />
       </Tile>
 
-      {/* Weight */}
-      <Tile icon="⚖️" label="Weight" badge="Today">
+      {/* Reminders */}
+      <Tile icon="⏰" label="Reminders" badge={reminders.length ? "Upcoming" : undefined}>
         <Hero
-          value={weight || "—"}
-          unit={weight ? "kg" : undefined}
-          sub={weight ? "Logged today" : "Not logged today"}
+          value={reminders.length ? String(reminders.length) : "—"}
+          unit={reminders.length ? "pending" : undefined}
+          sub={
+            nextReminder
+              ? `${whenLabel(nextReminder.remind_at)} · ${nextReminder.message}`
+              : "Nothing scheduled"
+          }
         />
       </Tile>
 
@@ -185,10 +188,8 @@ export default function TodayBand() {
               {whenLabel(nextEvent.start, nextEvent.allDay)}
             </p>
             <p className="text-[13px] mt-1.5 truncate">{nextEvent.title}</p>
-            {nextReminder && (
-              <p className="text-[11px] text-[var(--text-muted)] mt-1 truncate">
-                Then {whenLabel(nextReminder.remind_at)} · {nextReminder.message}
-              </p>
+            {nextEvent.location && (
+              <p className="text-[11px] text-[var(--text-muted)] mt-1 truncate">{nextEvent.location}</p>
             )}
           </div>
         ) : nextReminder ? (
