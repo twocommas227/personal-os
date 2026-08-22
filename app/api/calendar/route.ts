@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import ICAL from "ical.js";
 
@@ -24,9 +24,27 @@ const CACHE_TTL = 5 * 60 * 1000;
 // events before they ever enter the window.
 const MAX_OCCURRENCES = 10000;
 
+/** Show enough of a feed URL to identify it without printing the whole secret. */
+function maskUrl(url: string): string {
+  const trimmed = url.trim();
+  if (trimmed.length <= 40) return trimmed;
+  return `${trimmed.slice(0, 32)}…${trimmed.slice(-6)}`;
+}
+
 async function fetchAndParse(url: string, calendar: "google" | "apple"): Promise<CalEvent[]> {
-  const res = await fetch(url, { cache: "no-store" });
+  // Apple hands out webcal:// links, which fetch() cannot resolve — the scheme
+  // is just https with a "subscribe me" hint for the OS. Normalise it so a URL
+  // pasted verbatim from Calendar.app works.
+  const httpUrl = url.trim().replace(/^webcal:\/\//i, "https://");
+
+  const res = await fetch(httpUrl, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  }
   const text = await res.text();
+  if (!text.includes("BEGIN:VCALENDAR")) {
+    throw new Error("Response was not an iCalendar feed");
+  }
 
   const jcal = ICAL.parse(text);
   const comp = new ICAL.Component(jcal);
@@ -147,13 +165,18 @@ async function fetchAndParse(url: string, calendar: "google" | "apple"): Promise
   return events;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // ?debug=1 reports per-feed status. A feed that 404s or fails to parse
+  // otherwise contributes zero events silently, which is indistinguishable
+  // from an empty calendar — this makes the difference visible.
+  const debug = req.nextUrl.searchParams.get("debug") === "1";
+
   // Return cache if fresh
-  if (cache && Date.now() - cache.at < CACHE_TTL) {
+  if (!debug && cache && Date.now() - cache.at < CACHE_TTL) {
     return NextResponse.json(cache.events, {
       headers: { "Cache-Control": "no-store" },
     });
@@ -167,22 +190,33 @@ export async function GET() {
       .map((u) => u.trim())
       .filter(Boolean);
 
-  const fetches: Promise<CalEvent[]>[] = [
-    ...urlList(process.env.GOOGLE_CALENDAR_ICAL_URL).map((url) =>
-      fetchAndParse(url, "google").catch((err) => {
-        console.error("[calendar] google feed failed:", url, err);
-        return [] as CalEvent[];
-      })
-    ),
-    ...urlList(process.env.APPLE_CALENDAR_ICAL_URL).map((url) =>
-      fetchAndParse(url, "apple").catch((err) => {
-        console.error("[calendar] apple feed failed:", url, err);
-        return [] as CalEvent[];
-      })
-    ),
+  const feeds: { url: string; source: "google" | "apple" }[] = [
+    ...urlList(process.env.GOOGLE_CALENDAR_ICAL_URL).map((url) => ({ url, source: "google" as const })),
+    ...urlList(process.env.APPLE_CALENDAR_ICAL_URL).map((url) => ({ url, source: "apple" as const })),
   ];
 
-  const results = await Promise.all(fetches);
+  const diagnostics: { source: string; url: string; ok: boolean; events: number; error?: string }[] = [];
+
+  const results = await Promise.all(
+    feeds.map(({ url, source }) =>
+      fetchAndParse(url, source)
+        .then((evts) => {
+          diagnostics.push({ source, url: maskUrl(url), ok: true, events: evts.length });
+          return evts;
+        })
+        .catch((err) => {
+          console.error(`[calendar] ${source} feed failed:`, url, err);
+          diagnostics.push({
+            source,
+            url: maskUrl(url),
+            ok: false,
+            events: 0,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          return [] as CalEvent[];
+        })
+    )
+  );
 
   // Dedupe by id — the same calendar listed twice, or a calendar subscribed to
   // from both accounts, would otherwise emit every event more than once.
@@ -197,6 +231,20 @@ export async function GET() {
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
   cache = { events, at: Date.now() };
+
+  if (debug) {
+    return NextResponse.json(
+      {
+        configured: {
+          google: urlList(process.env.GOOGLE_CALENDAR_ICAL_URL).length,
+          apple: urlList(process.env.APPLE_CALENDAR_ICAL_URL).length,
+        },
+        feeds: diagnostics,
+        totalEvents: events.length,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
 
   return NextResponse.json(events, {
     headers: { "Cache-Control": "no-store" },
