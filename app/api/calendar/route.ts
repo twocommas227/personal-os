@@ -130,7 +130,10 @@ async function fetchAndParse(url: string, calendar: "google" | "apple"): Promise
       if (start.compare(windowEnd) > 0) return;
       if (end && end.compare(windowStart) < 0) return;
       events.push({
-        id: event.uid || `${calendar}-${start.toUnixTime()}`,
+        // Always qualify with the start time: a feed can carry several VEVENTs
+        // sharing one UID (recurrence overrides), and a bare UID collides as a
+        // React key when it does.
+        id: `${event.uid || calendar}-${start.toUnixTime()}`,
         title: event.summary || "(No title)",
         start: start.toJSDate().toISOString(),
         end: (end ?? start).toJSDate().toISOString(),
