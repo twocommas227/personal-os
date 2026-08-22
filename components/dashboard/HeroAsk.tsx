@@ -85,7 +85,7 @@ export default function HeroAsk() {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-[var(--glass-border)]">
+    <section className="relative overflow-hidden rounded-2xl border border-[var(--glass-border)]">
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10"
@@ -97,37 +97,27 @@ export default function HeroAsk() {
         }}
       />
 
-      <div className="px-6 py-9 sm:px-10 sm:py-11 flex flex-col items-center text-center">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 flex items-start gap-3">
         {/* Julie */}
-        <div className="flex items-center gap-2.5 mb-4">
-          <span className="relative w-9 h-9 rounded-full bg-[var(--ink-2)] border border-[var(--glass-border)] grid place-items-center font-mono text-[13px] font-bold text-[var(--accent)]">
-            J
-            <span
-              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--ink-1)] ${
-                status === "loading" ? "bg-[var(--accent)] animate-pulse" : "bg-[var(--ok)]"
-              }`}
-              aria-hidden="true"
-            />
-          </span>
-          <span className="text-left">
-            <span className="block text-[13px] font-semibold leading-tight">Julie</span>
-            <span className="block text-[10px] font-mono uppercase tracking-[0.14em] text-[var(--text-muted)]">
-              {status === "loading" ? "thinking" : "online"}
-            </span>
-          </span>
-        </div>
+        <span className="relative w-8 h-8 mt-0.5 rounded-full bg-[var(--ink-2)] border border-[var(--glass-border)] grid place-items-center font-mono text-[12px] font-bold text-[var(--accent)] flex-shrink-0">
+          J
+          <span
+            className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--ink-1)] ${
+              status === "loading" ? "bg-[var(--accent)] animate-pulse" : "bg-[var(--ok)]"
+            }`}
+            aria-hidden="true"
+          />
+        </span>
 
-        <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-[var(--text-muted)]">
-          {greeting()}, Josh <span aria-hidden="true">👋</span>
-        </p>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] mb-2 text-[var(--text-muted)]">
+            <span className="font-semibold text-[var(--text-secondary)]">Julie</span>
+            <span className="mx-1.5 opacity-40">·</span>
+            {status === "loading" ? "looking that up…" : `${greeting()}, Josh`}
+          </p>
 
-        <h1 className="mt-2 text-2xl sm:text-[32px] font-semibold tracking-tight text-balance">
-          Ask Julie anything
-        </h1>
-
-        <div className="mt-6 w-full max-w-2xl">
           <div
-            className={`flex items-end gap-2 rounded-2xl border bg-[var(--ink-2)]/80 backdrop-blur px-4 py-3 transition-colors ${
+            className={`flex items-end gap-2 rounded-xl border bg-[var(--ink-2)]/80 backdrop-blur px-3 py-2 transition-colors ${
               status === "error"
                 ? "border-[var(--danger)]"
                 : "border-[var(--glass-border)] focus-within:border-[var(--accent)]"
@@ -145,7 +135,7 @@ export default function HeroAsk() {
             <button
               onClick={() => send()}
               disabled={!text.trim() || status === "loading"}
-              className="px-4 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--ink-0)] text-xs font-semibold disabled:opacity-40 hover:opacity-90 transition-opacity flex-shrink-0"
+              className="px-3 py-1 rounded-lg bg-[var(--accent)] text-[var(--ink-0)] text-[11px] font-semibold disabled:opacity-40 hover:opacity-90 transition-opacity flex-shrink-0"
             >
               {status === "loading" ? "…" : "Ask"}
             </button>
@@ -153,7 +143,7 @@ export default function HeroAsk() {
 
           {/* Answer */}
           {status === "answer" && answer && (
-            <div className="mt-3 text-left rounded-2xl border border-[var(--glass-border)] bg-[var(--ink-1)]/70 px-4 py-3">
+            <div className="mt-2.5 text-left rounded-xl border border-[var(--glass-border)] bg-[var(--ink-1)]/70 px-3.5 py-2.5">
               <p className="text-sm text-[var(--text-secondary)] whitespace-pre-line leading-relaxed">
                 {answer}
               </p>
@@ -166,31 +156,20 @@ export default function HeroAsk() {
             </div>
           )}
 
-          {/* Status line */}
-          {status !== "answer" && (
+          {/* Status line — only when there's something to report */}
+          {(status === "saved" || status === "error") && (
             <p
-              className="mt-2.5 text-[11px] h-4 font-mono"
-              style={{
-                color:
-                  status === "saved"
-                    ? "var(--ok)"
-                    : status === "error"
-                    ? "var(--danger)"
-                    : "var(--text-muted)",
-              }}
+              className="mt-2 text-[11px] font-mono"
+              style={{ color: status === "saved" ? "var(--ok)" : "var(--danger)" }}
               aria-live="polite"
             >
-              {status === "loading"
-                ? "Julie is looking that up…"
-                : status === "idle"
-                ? "Ask a question, or just capture — Julie tells the difference"
-                : note}
+              {note}
             </p>
           )}
 
           {/* Suggested questions */}
           {status === "idle" && (
-            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               {SUGGESTIONS.map((q) => (
                 <button
                   key={q}
